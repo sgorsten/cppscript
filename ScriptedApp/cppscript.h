@@ -6,8 +6,6 @@
 #include <vector>
 #include <map>
 
-#include <Windows.h>
-
 struct ScriptNode
 {
     const char * sig;
@@ -29,7 +27,7 @@ public:
 
 class ScriptEngine
 {
-    std::string name;
+    std::string name, preamble;
     std::map<const char *, std::pair<std::string, std::string>> sigs;
     std::vector<std::weak_ptr<ScriptNode>> nodes;
     void * module;
@@ -37,7 +35,7 @@ class ScriptEngine
 
     std::shared_ptr<ScriptNode> CreateScriptNode(const std::type_info & sig, std::string source);
 public:
-    ScriptEngine(std::string name);
+    ScriptEngine(std::string name, std::string preamble);
     ~ScriptEngine();
 
     void Load();

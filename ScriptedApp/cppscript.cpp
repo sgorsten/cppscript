@@ -3,16 +3,17 @@
 #include <cassert>
 #include <sstream>
 #include <fstream>
+#include <Windows.h>
 
 static void RunSystemCommand(std::ostream & log, std::string cmd)
 {
     FILE * pipe = _popen(cmd.c_str(), "r");
     char buffer[1024];
-    while (fgets(buffer, sizeof(buffer), pipe)) log << buffer << std::endl;
+    while (fgets(buffer, sizeof(buffer), pipe)) log << buffer;
     fclose(pipe);
 }
 
-ScriptEngine::ScriptEngine(std::string name) : name(move(name)), module(), nextId() {}
+ScriptEngine::ScriptEngine(std::string name, std::string preamble) : name(move(name)), preamble(move(preamble)), module(), nextId() {}
 ScriptEngine::~ScriptEngine() { Unload(); }
 
 std::shared_ptr<ScriptNode> ScriptEngine::CreateScriptNode(const std::type_info & sig, std::string source)
@@ -51,6 +52,7 @@ void ScriptEngine::Recompile(std::ostream & log)
 
     // Write script source code
     std::ofstream out("scripts\\" + name + "\\script.cpp");
+    out << preamble;
     for (size_t i = 0; i < nodes.size(); ++i)
     {
         if (auto node = nodes[i].lock())
@@ -62,7 +64,12 @@ void ScriptEngine::Recompile(std::ostream & log)
     }
     out.close();
 
-    RunSystemCommand(log, "compile.bat " + name); // Compile the new scripts
+#ifdef NDEBUG
+    const char * config = " RELEASE";
+#else
+    const char * config = " DEBUG";
+#endif
+    RunSystemCommand(log, "compile.bat " + name + config); // Compile the new scripts
 
     // Load the newly compiled *.dll
     std::string libpath = "scripts\\" + name + "\\script.dll";
