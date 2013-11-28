@@ -4,21 +4,21 @@
 
 int main()
 {
-    ScriptEngine engine("test", "#include <iostream>\n");
+    script::Library lib("test", "#include <iostream>\n");
 
-    engine.DefineSignature<void()>("void", "");
-    engine.DefineSignature<int(int)>("int", "int");
-    engine.DefineSignature<double(double,double)>("double", "double,double");
+    lib.DefineSignature<void()>("void", "");
+    lib.DefineSignature<int(int)>("int", "int");
+    lib.DefineSignature<double(double, double)>("double", "double,double");
 
-    auto hello = engine.CreateScript<void()>("() { std::cout << \"Hello world!\" << std::endl; }");
-    auto hello2 = engine.CreateScript<void()>("() { std::cout << \"Hello world!\" << std::endl; }");
-    engine.Recompile(std::cout);
+    auto hello = lib.CreateScript<void()>("() { std::cout << \"Hello world!\" << std::endl; }");
+    auto hello2 = lib.CreateScript<void()>("() { std::cout << \"Hello world!\" << std::endl; }");
+    lib.Recompile(std::cout);
     hello(); hello2();
 
-    hello = engine.CreateScript<void()>("() { std::cout << \"Scripting in C++ is surprisingly simple!\" << std::endl; }");
-    auto sqr = engine.CreateScript<int(int)>("(int x) { return x*x; }");
-    auto sum = engine.CreateScript<double(double,double)>("(double a, double b) { return a+b; }");
-    engine.Recompile(std::cout);
+    hello = lib.CreateScript<void()>("() { std::cout << \"Scripting in C++ is surprisingly simple!\" << std::endl; }");
+    auto sqr = lib.CreateScript<int(int)>("(int x) { return x*x; }");
+    auto sum = lib.CreateScript<double(double, double)>("(double a, double b) { return a+b; }");
+    lib.Recompile(std::cout);
 
     std::cout << "sqr(5) = " << sqr(5) << std::endl;
     std::cout << "sum(3.1,4.2) = " << sum(3.1, 4.2) << std::endl;

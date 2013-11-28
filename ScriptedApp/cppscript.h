@@ -6,43 +6,46 @@
 #include <vector>
 #include <map>
 
-struct ScriptNode
+namespace script
 {
-    const char * sig;
-    std::string id, source;
-    void * impl;
-};
+    struct _Node { const char * sig; std::string id, source; void * impl; };
 
-template<class Function> class ScriptFunction
-{
-    std::shared_ptr<ScriptNode> node;
-public:
-    ScriptFunction() {}
-    ScriptFunction(std::shared_ptr<ScriptNode> node) : node(move(node)) {}
+    template<class Signature> class Function
+    {
+        std::shared_ptr<_Node>          node;
+    public:
+                                        Function() {}
+                                        Function(std::shared_ptr<_Node> node) : node(move(node)) {}
 
-    const std::string & GetSource() const { return node ? node->source : {}; }
-    Function * GetPointer() const { return node ? reinterpret_cast<Function*>(node->impl) : nullptr; }
-    template<class... Params> auto operator()(Params... args) -> decltype(GetPointer()(args...)) const { return GetPointer()(args...); }
-};
+        bool                            operator == (const Function & rhs) const { return node == rhs.node; }
+        bool                            operator != (const Function & rhs) const { return node != rhs.node; }
 
-class ScriptEngine
-{
-    std::string name, preamble;
-    std::map<const char *, std::pair<std::string, std::string>> sigs;
-    std::vector<std::weak_ptr<ScriptNode>> nodes;
-    void * module;
-    size_t nextId;
+        bool                            IsLoaded() const { return GetPointer() != nullptr; }
+        const std::string &             GetSource() const { return node ? node->source : {}; }
+        Signature *                     GetPointer() const { return node ? reinterpret_cast<Signature*>(node->impl) : nullptr; }
 
-    std::shared_ptr<ScriptNode> CreateScriptNode(const std::type_info & sig, std::string source);
-public:
-    ScriptEngine(std::string name, std::string preamble);
-    ~ScriptEngine();
+        template<class... Params> auto  operator()(Params... args) -> decltype(GetPointer()(args...)) const { return GetPointer()(args...); }
+    };
 
-    void Unload();
-    void Recompile(std::ostream & log);
+    class Library
+    {
+        std::string name, preamble;
+        std::map<const char *, std::pair<std::string, std::string>> sigs;
+        std::vector<std::weak_ptr<_Node>> nodes;
+        void * module;
+        size_t nextId;
 
-    template<class Function> void DefineSignature(std::string returnType, std::string paramTypes) { sigs[typeid(Function).name()] = make_pair(move(returnType), move(paramTypes)); }
-    template<class Function> ScriptFunction<Function> CreateScript(std::string source) { return CreateScriptNode(typeid(Function), source); }
-};
+        std::shared_ptr<_Node> CreateScriptNode(const std::type_info & sig, std::string source);
+    public:
+        Library(std::string name, std::string preamble);
+        ~Library();
+
+        void Unload();
+        void Recompile(std::ostream & log);
+
+        template<class Signature> void DefineSignature(std::string returnType, std::string paramTypes) { sigs[typeid(Signature).name()] = make_pair(move(returnType), move(paramTypes)); }
+        template<class Signature> Function<Signature> CreateScript(std::string source) { return CreateScriptNode(typeid(Signature), source); }
+    };
+}
 
 #endif
