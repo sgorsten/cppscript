@@ -1,50 +1,82 @@
 #include <string>
-
-template<class Function>
-struct ScriptedFunction
-{
-    std::string source;
-    Function * impl;
-};
-
 #include <iostream>
 #include <fstream>
 #include <Windows.h>
 
-typedef int Function(int);
-
-class ScriptNode
+class ScriptNodeBase
 {
     friend class ScriptEngine;
-
-    std::string source;
-    Function * impl;
-
-    ScriptNode(std::string source) : source(move(source)), impl() {}
+    std::string id, source;
+    virtual const char * GetSignature() const = 0;
+    virtual void Unload() = 0;
+    virtual void Reload(void * loaderProc) = 0;
 public:
-    bool IsCompiled() const { return impl; }
-    int Call(int x) const { return impl(x); }
+    ScriptNodeBase(std::string id, std::string source) : id(move(id)), source(move(source)) {}
+};
+
+template<class Function> class ScriptNode : public ScriptNodeBase
+{
+    friend class ScriptEngine;
+    Function * impl;
+    ScriptNode(std::string id, std::string source) : ScriptNodeBase(move(id), move(source)), impl() {}
+    const char * GetSignature() const { return typeid(Function).name(); }
+    void Unload() { impl = nullptr; }
+    void Reload(void * loaderProc) 
+    { 
+        typedef Function * FunctionPtr;
+        auto loader = (FunctionPtr(*)())loaderProc;
+        impl = loader();
+    }
+public:
+    bool IsCompiled() const { return impl != nullptr; }
+    Function * GetImpl() const { return impl; }
 };
 
 #include <vector>
 #include <memory>
+#include <map>
 #include <sstream>
-struct ScriptEngine
+#include <cassert>
+#include <typeinfo>
+class ScriptEngine
 {
-    typedef std::unique_ptr<ScriptNode> ScriptNodePtr;
-    std::vector<ScriptNodePtr> nodes;
+    std::string name;
+    std::map<const char *, std::pair<std::string, std::string>> sigs;
+    std::vector<std::unique_ptr<ScriptNodeBase>> nodes;
     HMODULE module;
+    size_t nextId;
+
+    void RunSystemCommand(std::string cmd)
+    {
+        FILE * pipe = _popen(cmd.c_str(), "r");
+        char buffer[1024];
+        while (fgets(buffer, sizeof(buffer), pipe)) std::cout << buffer << std::endl;
+        fclose(pipe);
+    }
 public:
-    ScriptEngine() : module() {}
+    ScriptEngine(std::string name) : name(move(name)), module(), nextId() {}
     ~ScriptEngine() { Unload(); }
 
-    ScriptNode * CreateScript(std::string source) { nodes.push_back(ScriptNodePtr(new ScriptNode(source))); return nodes.back().get(); }
+    template<class Function> void DefineSignature(std::string returnType, std::string paramTypes)
+    {
+        sigs[typeid(Function).name()] = make_pair(move(returnType), move(paramTypes));
+    }
+
+    template<class Function> ScriptNode<Function> * CreateScript(std::string source) 
+    { 
+        std::ostringstream ss; 
+        ss << "__script_function_" << nextId++;
+        std::unique_ptr<ScriptNode<Function>> func(new ScriptNode<Function>(ss.str(), source));
+        auto node = func.get(); 
+        nodes.push_back(move(func));
+        return node; 
+    }
 
     void Unload()
     {
         if (module)
         {
-            for (auto & n : nodes) n->impl = nullptr;
+            for (auto & n : nodes) n->Unload();
             FreeLibrary(module);
             module = nullptr;
         }
@@ -52,53 +84,52 @@ public:
 
     void Recompile()
     {
-        Unload();
+        Unload(); // Unload the current *.dll if one is loaded
+        RunSystemCommand("clean.bat " + name); // Clean existing artifacts and intermediates
 
+        std::string filename = "scripts\\" + name + "\\script.cpp";
         // Write script source code
-        std::ofstream out("script.cpp");
+        std::ofstream out(filename.c_str());
         for (size_t i = 0; i < nodes.size(); ++i)
         {
-            out << "extern \"C\" __declspec(dllexport) int (*__get_script_function_" << i << "())(int) { return []" << nodes[i]->source << "; }" << std::endl;
+            auto it = sigs.find(nodes[i]->GetSignature());
+            assert(it != sigs.end()); // Must have defined signature ahead of time
+            out << "extern \"C\" __declspec(dllexport) " << it->second.first << "(*" << nodes[i]->id << "())(" << it->second.second << ") { return []" << nodes[i]->source << "; }" << std::endl;
         }
         out.close();
 
-        // Compile the script
-        FILE * pipe = _popen("compile.bat", "r");
-        char buffer[1024];
-        while (fgets(buffer, sizeof(buffer), pipe))
-        {
-            std::cout << buffer << std::endl;
-        }
+        RunSystemCommand("compile.bat " + name); // Compile the new scripts
 
         // Load DLL and implementation of functions
-        module = LoadLibrary(L"..\\Debug\\dll.dll");
+        filename = "scripts\\" + name + "\\script.dll";
+        module = LoadLibraryA(filename.c_str());
+        if (!module) return; // Compilation failed
         for (size_t i = 0; i < nodes.size(); ++i)
         {
-            std::ostringstream ss; 
-            ss << "__get_script_function_" << i;
-            auto s = ss.str();
-            auto loader = (int(*(*)())(int))GetProcAddress(module, s.c_str());
-            nodes[i]->impl = loader();
+            nodes[i]->Reload(GetProcAddress(module, nodes[i]->id.c_str()));
         }
     }
 };
 
 int main()
 {
-    ScriptEngine engine;
+    ScriptEngine engine("test");
 
-    auto sqr = engine.CreateScript("(int x) { return x*x; }");
-    auto cube = engine.CreateScript("(int x) { return x*x*x; }");
+    engine.DefineSignature<int(int)>("int", "int");
+    engine.DefineSignature<int(int,int)>("int", "int,int");
 
-    engine.Recompile();
-    std::cout << "sqr(5) = " << sqr->Call(5) << std::endl;
-    std::cout << "cube(5) = " << cube->Call(5) << std::endl;
-
-    sqr = engine.CreateScript("(int x) { return x-2; }");
+    auto sqr = engine.CreateScript<int(int)>("(int x) { return x*x; }");
+    auto sum = engine.CreateScript<int(int,int)>("(int a, int b) { return a+b; }");
 
     engine.Recompile();
-    std::cout << "sqr(5) = " << sqr->Call(5) << std::endl;
-    std::cout << "cube(5) = " << cube->Call(5) << std::endl;
+    std::cout << "sqr(5) = " << sqr->GetImpl()(5) << std::endl;
+    std::cout << "sum(3,4) = " << sum->GetImpl()(3, 4) << std::endl;
+
+    sqr = engine.CreateScript<int(int)>("(int x) { return x-2; }");
+
+    engine.Recompile();
+    std::cout << "sqr(5) = " << sqr->GetImpl()(5) << std::endl;
+    std::cout << "sum(3,4) = " << sum->GetImpl()(3, 4) << std::endl;
 
     return 0;
 }
