@@ -69,7 +69,7 @@ void ScriptEngine::Recompile(std::ostream & log)
 #else
     const char * config = " DEBUG";
 #endif
-    RunSystemCommand(log, "compile.bat " + name + config); // Compile the new scripts
+    RunSystemCommand(log, "compile.bat " + name + config + (sizeof(void*) == 8 ? " x64" : " x86")); // Compile the new scripts
 
     // Load the newly compiled *.dll
     std::string libpath = "scripts\\" + name + "\\script.dll";
