@@ -20,23 +20,23 @@ namespace script
 
     std::shared_ptr<_Node> Library::CreateScriptNode(const std::type_info & sig, std::string source)
     {
+        // Compute a name for this function by hashing the signature and source code together
+        std::ostringstream ss;
+        ss << sig.name() << " " << source;
+        auto h = std::hash<std::string>()(ss.str());
+        ss.str("");
+        ss << "__script_function_" << h;
+        std::string id = ss.str();
+
         // If signature and source match an existing function, hand that one out
         for (auto & n : nodes)
         {
             if (auto node = n.lock())
             {
                 if (node->sig == sig.name() && node->source == source) return node;
+                if (node->id == id) throw std::runtime_error("Hash collision in library " + name + ": " + source); // User can always add whitespace to change the hash
             }
         }
-
-        // Compute a name for this function by hashing the signature and source code together
-        std::ostringstream ss; 
-        ss << sig.name() << " " << source;
-        auto h = std::hash<std::string>()(ss.str());
-        ss.str(""); 
-        ss << "__script_function_" << h;
-
-        // TODO: Check for a hash collision. If it occurs, should probably just warn the user. Can always add whitespace to change the hash.    
 
         // Create a script node for this function
         auto func = std::make_shared<_Node>();
@@ -52,15 +52,16 @@ namespace script
     {
         Unload();
 
-        std::string libpath = "scripts\\" + name + "\\script.dll";
+        std::string libpath = "scripts\\" + name + ".dll";
         module = LoadLibraryA(libpath.c_str());
-        if (!module) return; // Compilation failed (TODO: Throw?)
+        if (!module) throw std::runtime_error("Missing library: " + name);
         for (size_t i = 0; i < nodes.size(); ++i)
         {
             if (auto node = nodes[i].lock())
             {
                 auto loader = (void *(*)())GetProcAddress((HMODULE)module, node->id.c_str());
-                if (loader) node->impl = loader(); // Function missing (TODO: Throw?)
+                if (!loader) throw std::runtime_error("Missing procedure in library " + name + ": " + node->source);
+                node->impl = loader();
             }
         }
     }
