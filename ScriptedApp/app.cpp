@@ -11,51 +11,94 @@ struct ScriptedFunction
 #include <fstream>
 #include <Windows.h>
 
-int main()
+typedef int Function(int);
+
+class ScriptNode
 {
-    ScriptedFunction<int(int)> sqr, cube;
+    friend class ScriptEngine;
 
-    sqr.source = 
-R"((int x) 
-{ 
-    return x*x; 
-})";
+    std::string source;
+    Function * impl;
 
-    cube.source =
-R"((int x) 
-{ 
-    return x*x*x; 
-})";
+    ScriptNode(std::string source) : source(move(source)), impl() {}
+public:
+    bool IsCompiled() const { return impl; }
+    int Call(int x) const { return impl(x); }
+};
 
-    // Write function to script.cpp
-    std::ofstream out("script.cpp");
-    out << "extern \"C\" __declspec(dllexport) int (*__get_script_function_0())(int) { return []" << sqr.source << "; }" << std::endl;
-    out << "extern \"C\" __declspec(dllexport) int (*__get_script_function_1())(int) { return []" << cube.source << "; }" << std::endl;
-    out.close();
+#include <vector>
+#include <memory>
+#include <sstream>
+struct ScriptEngine
+{
+    typedef std::unique_ptr<ScriptNode> ScriptNodePtr;
+    std::vector<ScriptNodePtr> nodes;
+    HMODULE module;
+public:
+    ScriptEngine() : module() {}
+    ~ScriptEngine() { Unload(); }
 
-    // Compile the script
-    FILE * pipe = _popen("compile.bat", "r");
-    char buffer[1024]; 
-    while (fgets(buffer, sizeof(buffer), pipe))
+    ScriptNode * CreateScript(std::string source) { nodes.push_back(ScriptNodePtr(new ScriptNode(source))); return nodes.back().get(); }
+
+    void Unload()
     {
-        std::cout << buffer << std::endl;
+        if (module)
+        {
+            for (auto & n : nodes) n->impl = nullptr;
+            FreeLibrary(module);
+            module = nullptr;
+        }
     }
 
-    // Load DLL and implementation of function
-    HMODULE hmod = LoadLibrary(L"..\\Debug\\dll.dll");
-    auto loader = (int(*(*)())(int))GetProcAddress(hmod, "__get_script_function_0");
-    sqr.impl = loader();
-    loader = (int(*(*)())(int))GetProcAddress(hmod, "__get_script_function_1");
-    cube.impl = loader();
+    void Recompile()
+    {
+        Unload();
 
-    // Call function
-    std::cout << "sqr(5) = " << sqr.impl(5) << std::endl;
-    std::cout << "cube(5) = " << cube.impl(5) << std::endl;
+        // Write script source code
+        std::ofstream out("script.cpp");
+        for (size_t i = 0; i < nodes.size(); ++i)
+        {
+            out << "extern \"C\" __declspec(dllexport) int (*__get_script_function_" << i << "())(int) { return []" << nodes[i]->source << "; }" << std::endl;
+        }
+        out.close();
 
-    // Unload DLL
-    sqr.impl = nullptr;
-    cube.impl = nullptr;
-    FreeLibrary(hmod);
+        // Compile the script
+        FILE * pipe = _popen("compile.bat", "r");
+        char buffer[1024];
+        while (fgets(buffer, sizeof(buffer), pipe))
+        {
+            std::cout << buffer << std::endl;
+        }
+
+        // Load DLL and implementation of functions
+        module = LoadLibrary(L"..\\Debug\\dll.dll");
+        for (size_t i = 0; i < nodes.size(); ++i)
+        {
+            std::ostringstream ss; 
+            ss << "__get_script_function_" << i;
+            auto s = ss.str();
+            auto loader = (int(*(*)())(int))GetProcAddress(module, s.c_str());
+            nodes[i]->impl = loader();
+        }
+    }
+};
+
+int main()
+{
+    ScriptEngine engine;
+
+    auto sqr = engine.CreateScript("(int x) { return x*x; }");
+    auto cube = engine.CreateScript("(int x) { return x*x*x; }");
+
+    engine.Recompile();
+    std::cout << "sqr(5) = " << sqr->Call(5) << std::endl;
+    std::cout << "cube(5) = " << cube->Call(5) << std::endl;
+
+    sqr = engine.CreateScript("(int x) { return x-2; }");
+
+    engine.Recompile();
+    std::cout << "sqr(5) = " << sqr->Call(5) << std::endl;
+    std::cout << "cube(5) = " << cube->Call(5) << std::endl;
 
     return 0;
 }
