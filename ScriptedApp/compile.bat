@@ -7,6 +7,8 @@ SET LFLAGS=/OUT:"scripts\%1\script.dll" /MANIFEST /NXCOMPAT /PDB:"scripts\%1\scr
 IF "%2" == "DEBUG" (
 SET CFLAGS=%CFLAGS% /D "_DEBUG" /RTC1 /Gm /Od /MDd
 SET LFLAGS=%LFLAGS% /INCREMENTAL
+IF "%3" == "x86" SET CFLAGS=%CFLAGS% /ZI
+IF "%3" == "x64" SET CFLAGS=%CFLAGS% /Zi
 )
 
 IF "%2" == "RELEASE" (
@@ -14,10 +16,16 @@ SET CFLAGS=%CFLAGS% /D "NDEBUG" /GL /Gy /Zi /Gm- /O2 /Oi /MD
 SET LFLAGS=%LFLAGS% /LTCG /OPT:REF /INCREMENTAL:NO /OPT:ICF
 )
 
-IF "%3" == "x86" CALL "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x86 > nul 2> nul
-IF "%3" == "x64" CALL "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x86_amd64 > nul 2> nul
+IF "%3" == "x86" (
+SET CFLAGS=%CFLAGS% /analyze- /Oy-
+SET LFLAGS=%LFLAGS% /MACHINE:X86
+IF "%2" == "RELEASE" SET LFLAGS=%LFLAGS% /SAFESEH
+CALL "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x86 > nul 2> nul
+)
 
-IF "%2" == "DEBUG" IF "%3" == "x86" cl %CFLAGS% /analyze- /ZI /Oy- /link %LFLAGS% /MACHINE:X86
-IF "%2" == "DEBUG" IF "%3" == "x64" cl %CFLAGS% /Zi /link %LFLAGS% /MACHINE:X64
-IF "%2" == "RELEASE" IF "%3" == "x86" cl %CFLAGS% /analyze- /Oy- /link %LFLAGS% /MACHINE:X86 /SAFESEH
-IF "%2" == "RELEASE" IF "%3" == "x64" cl %CFLAGS% /link %LFLAGS% /MACHINE:X64 
+IF "%3" == "x64" (
+SET LFLAGS=%LFLAGS% /MACHINE:X64
+CALL "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x86_amd64 > nul 2> nul
+)
+
+cl %CFLAGS% /link %LFLAGS%
