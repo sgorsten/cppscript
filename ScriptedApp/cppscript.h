@@ -20,9 +20,9 @@ public:
     ScriptFunction() {}
     ScriptFunction(std::shared_ptr<ScriptNode> node) : node(move(node)) {}
 
-    bool IsCompiled() const { return node && node->impl; }
-    Function * GetImpl() const { return node ? reinterpret_cast<Function*>(node->impl) : nullptr; }
-    template<class... Params> auto operator()(Params... args) -> decltype(GetImpl()(args...)) const { return GetImpl()(args...); }
+    const std::string & GetSource() const { return node ? node->source : {}; }
+    Function * GetPointer() const { return node ? reinterpret_cast<Function*>(node->impl) : nullptr; }
+    template<class... Params> auto operator()(Params... args) -> decltype(GetPointer()(args...)) const { return GetPointer()(args...); }
 };
 
 class ScriptEngine
@@ -38,7 +38,6 @@ public:
     ScriptEngine(std::string name, std::string preamble);
     ~ScriptEngine();
 
-    void Load();
     void Unload();
     void Recompile(std::ostream & log);
 

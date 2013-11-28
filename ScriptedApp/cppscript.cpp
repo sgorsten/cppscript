@@ -18,6 +18,19 @@ ScriptEngine::~ScriptEngine() { Unload(); }
 
 std::shared_ptr<ScriptNode> ScriptEngine::CreateScriptNode(const std::type_info & sig, std::string source)
 {
+    // If signature and source match an existing function, hand that one out
+    for (auto & n : nodes)
+    {
+        if (auto node = n.lock())
+        {
+            if (node->sig == sig.name() && node->source == source)
+            {
+                return node;
+            }
+        }
+    }
+
+    // Otherwise create a brand new function
     std::ostringstream ss;
     ss << "__script_function_" << nextId++;
     auto func = std::make_shared<ScriptNode>();

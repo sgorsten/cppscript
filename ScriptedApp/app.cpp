@@ -11,8 +11,9 @@ int main()
     engine.DefineSignature<double(double,double)>("double", "double,double");
 
     auto hello = engine.CreateScript<void()>("() { std::cout << \"Hello world!\" << std::endl; }");
+    auto hello2 = engine.CreateScript<void()>("() { std::cout << \"Hello world!\" << std::endl; }");
     engine.Recompile(std::cout);
-    hello();
+    hello(); hello2();
 
     hello = engine.CreateScript<void()>("() { std::cout << \"Scripting in C++ is surprisingly simple!\" << std::endl; }");
     auto sqr = engine.CreateScript<int(int)>("(int x) { return x*x; }");
