@@ -20,6 +20,10 @@ int main()
     auto sum = lib.CreateScript<double(double, double)>("(double a, double b) { return a+b; }");
     lib.Recompile(std::cout);
 
+    // Demonstrate loading library without recompilation
+    lib.Unload();
+    lib.Load();
+
     std::cout << "sqr(5) = " << sqr(5) << std::endl;
     std::cout << "sum(3.1,4.2) = " << sum(3.1, 4.2) << std::endl;
     hello();

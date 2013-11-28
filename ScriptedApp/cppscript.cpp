@@ -29,9 +29,16 @@ namespace script
             }
         }
 
-        // Otherwise create a brand new function
-        std::ostringstream ss;
-        ss << "__script_function_" << nextId++;
+        // Compute a name for this function by hashing the signature and source code together
+        std::ostringstream ss; 
+        ss << sig.name() << " " << source;
+        auto h = std::hash<std::string>()(ss.str());
+        ss.str(""); 
+        ss << "__script_function_" << h;
+
+        // TODO: Check for a hash collision. If it occurs, should probably just warn the user. Can always add whitespace to change the hash.    
+
+        // Create a script node for this function
         auto func = std::make_shared<_Node>();
         func->sig = sig.name();
         func->id = ss.str();
@@ -41,20 +48,40 @@ namespace script
         return func;
     }
 
+    void Library::Load()
+    {
+        Unload();
+
+        std::string libpath = "scripts\\" + name + "\\script.dll";
+        module = LoadLibraryA(libpath.c_str());
+        if (!module) return; // Compilation failed (TODO: Throw?)
+        for (size_t i = 0; i < nodes.size(); ++i)
+        {
+            if (auto node = nodes[i].lock())
+            {
+                auto loader = (void *(*)())GetProcAddress((HMODULE)module, node->id.c_str());
+                if (loader) node->impl = loader(); // Function missing (TODO: Throw?)
+            }
+        }
+    }
+
     void Library::Unload()
     {
+        // Unload implementations of all functions (and garbage-collect unreferenced functions)
+        std::vector<std::weak_ptr<_Node>> liveNodes;
+        for (auto & n : nodes)
+        {
+            if (auto node = n.lock())
+            {
+                node->impl = nullptr;
+                liveNodes.push_back(node);
+            }
+        }
+        nodes = move(liveNodes);
+
+        // Unload the actual *.dll
         if (module)
         {
-            std::vector<std::weak_ptr<_Node>> liveNodes;
-            for (auto & n : nodes)
-            {
-                if (auto node = n.lock())
-                {
-                    node->impl = nullptr;
-                    liveNodes.push_back(node);
-                }
-            }
-            nodes = move(liveNodes);
             FreeLibrary((HMODULE)module);
             module = nullptr;
         }
@@ -85,18 +112,6 @@ namespace script
         const char * config = " DEBUG";
     #endif
         RunSystemCommand(log, "..\\scriptutils\\compile.bat " + name + config + (sizeof(void*) == 8 ? " x64" : " x86")); // Compile the new scripts
-
-        // Load the newly compiled *.dll
-        std::string libpath = "scripts\\" + name + "\\script.dll";
-        module = LoadLibraryA(libpath.c_str());
-        if (!module) return; // Compilation failed (TODO: Throw?)
-        for (size_t i = 0; i < nodes.size(); ++i)
-        {
-            if (auto node = nodes[i].lock())
-            {
-                auto loader = (void *(*)())GetProcAddress((HMODULE)module, node->id.c_str());
-                node->impl = loader();
-            }
-        }
+        Load(); // Load the newly compiled *.dll
     }
 }

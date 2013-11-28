@@ -40,6 +40,7 @@ namespace script
         Library(std::string name, std::string preamble);
         ~Library();
 
+        void Load();
         void Unload();
         void Recompile(std::ostream & log);
 
