@@ -48,7 +48,7 @@ void ScriptEngine::Unload()
 void ScriptEngine::Recompile(std::ostream & log)
 {
     Unload(); // Unload the current *.dll if one is loaded
-    RunSystemCommand(log, "clean.bat " + name); // Clean existing artifacts and intermediates
+    RunSystemCommand(log, "..\\scriptutils\\clean.bat " + name); // Clean existing artifacts and intermediates
 
     // Write script source code
     std::ofstream out("scripts\\" + name + "\\script.cpp");
@@ -69,7 +69,7 @@ void ScriptEngine::Recompile(std::ostream & log)
 #else
     const char * config = " DEBUG";
 #endif
-    RunSystemCommand(log, "compile.bat " + name + config + (sizeof(void*) == 8 ? " x64" : " x86")); // Compile the new scripts
+    RunSystemCommand(log, "..\\scriptutils\\compile.bat " + name + config + (sizeof(void*) == 8 ? " x64" : " x86")); // Compile the new scripts
 
     // Load the newly compiled *.dll
     std::string libpath = "scripts\\" + name + "\\script.dll";
