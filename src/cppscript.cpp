@@ -127,6 +127,22 @@ void script::CloseLibrary(void * library) { FreeLibrary(reinterpret_cast<HMODULE
 
 #else
 
-
+#include <cstdio>
+#include <dlfcn.h>
+static void RunSystemCommand(std::ostream & log, std::string cmd) { auto pipe = popen(cmd.c_str(), "r"); char buffer[1024]; while (fgets(buffer, sizeof(buffer), pipe)) log << buffer; fclose(pipe); }
+const char * script::GetExportSpecifier() { return ""; }
+void script::CleanLibrary(std::ostream & log, const std::string & name) 
+{ 
+    RunSystemCommand(log, "rm -rf scripts/"+name);
+    RunSystemCommand(log, "rm -f scripts/lib"+name+".so");
+    RunSystemCommand(log, "mkdir -p scripts/"+name);
+}
+void script::CompileLibrary(std::ostream & log, const std::string & name)
+{ 
+    RunSystemCommand(log, "g++ -std=c++11 scripts/"+name+"/script.cpp -shared -fPIC -o scripts/lib"+name+".so");
+}
+void * script::OpenLibrary(const std::string & name) { auto path = "scripts/lib" + name + ".so"; return dlopen(path.c_str(), RTLD_LOCAL | RTLD_LAZY); }
+void * script::LoadSymbol(void * library, const std::string & id) { return dlsym(library, id.c_str()); }
+void script::CloseLibrary(void * library) { dlclose(library); }
 
 #endif

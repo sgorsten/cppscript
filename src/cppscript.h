@@ -1,6 +1,7 @@
 #ifndef CPP_SCRIPT_H
 #define CPP_SCRIPT_H
 
+#include <utility>
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,10 +22,10 @@ namespace script
         bool                            operator != (const Function & rhs) const { return node != rhs.node; }
 
         bool                            IsLoaded() const { return GetPointer() != nullptr; }
-        const std::string &             GetSource() const { return node ? node->source : {}; }
+        const std::string &             GetSource() const { static const std::string empty; return node ? node->source : empty; }
         Signature *                     GetPointer() const { return node ? reinterpret_cast<Signature*>(node->impl) : nullptr; }
 
-        template<class... Params> auto  operator()(Params... args) -> decltype(GetPointer()(args...)) const { return GetPointer()(args...); }
+        template<class... Params> auto  operator()(Params... args) -> decltype(this->GetPointer()(args...)) const { return GetPointer()(args...); }
     };
 
     class Library
