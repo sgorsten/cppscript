@@ -18,6 +18,13 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\app.cpp" />
+    <ClCompile Include="..\src\cppscript.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\cppscript.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{8D1BB55A-5759-44F5-900C-A8864E5EEADC}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
@@ -148,13 +155,6 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="app.cpp" />
-    <ClCompile Include="cppscript.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="cppscript.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -3,17 +3,15 @@
 #include <cassert>
 #include <sstream>
 #include <fstream>
-#include <Windows.h>
 
 namespace script
 {
-    static void RunSystemCommand(std::ostream & log, std::string cmd)
-    {
-        FILE * pipe = _popen(cmd.c_str(), "r");
-        char buffer[1024];
-        while (fgets(buffer, sizeof(buffer), pipe)) log << buffer;
-        fclose(pipe);
-    }
+    static const char * GetExportSpecifier();
+    static void CleanLibrary(std::ostream & log, const std::string & name);
+    static void CompileLibrary(std::ostream & log, const std::string & name);
+    static void * OpenLibrary(const std::string & name);
+    static void * LoadSymbol(void * library, const std::string & id);
+    static void CloseLibrary(void * library);
 
     Library::Library(std::string name, std::string preamble) : name(move(name)), preamble(move(preamble)), module(), nextId() {}
     Library::~Library() { Unload(); }
@@ -52,14 +50,13 @@ namespace script
     {
         Unload();
 
-        std::string libpath = "scripts\\" + name + ".dll";
-        module = LoadLibraryA(libpath.c_str());
+        module = OpenLibrary(name);
         if (!module) throw std::runtime_error("Missing library: " + name);
         for (size_t i = 0; i < nodes.size(); ++i)
         {
             if (auto node = nodes[i].lock())
             {
-                auto loader = (void *(*)())GetProcAddress((HMODULE)module, node->id.c_str());
+                auto loader = (void *(*)())LoadSymbol(module, node->id);
                 if (!loader) throw std::runtime_error("Missing procedure in library " + name + ": " + node->source);
                 node->impl = loader();
             }
@@ -83,7 +80,7 @@ namespace script
         // Unload the actual *.dll
         if (module)
         {
-            FreeLibrary((HMODULE)module);
+            CloseLibrary(module);
             module = nullptr;
         }
     }
@@ -91,10 +88,10 @@ namespace script
     void Library::Recompile(std::ostream & log)
     {
         Unload(); // Unload the current *.dll if one is loaded
-        RunSystemCommand(log, "..\\scriptutils\\clean.bat " + name); // Clean existing artifacts and intermediates
+        CleanLibrary(log, name); // Clean existing artifacts and intermediates
 
         // Write script source code
-        std::ofstream out("scripts\\" + name + "\\script.cpp");
+        std::ofstream out("scripts/" + name + "/script.cpp");
         out << preamble;
         for (size_t i = 0; i < nodes.size(); ++i)
         {
@@ -102,17 +99,34 @@ namespace script
             {
                 auto it = sigs.find(node->sig);
                 assert(it != sigs.end()); // Must have defined signature ahead of time
-                out << "extern \"C\" __declspec(dllexport) " << it->second.first << "(*" << node->id << "())(" << it->second.second << ") { return []" << node->source << "; }" << std::endl;
+                out << "extern \"C\" " << GetExportSpecifier() << " " << it->second.first << "(*" << node->id << "())(" << it->second.second << ") { return[]" << node->source << "; }" << std::endl;
             }
         }
         out.close();
 
-    #ifdef NDEBUG
-        const char * config = " RELEASE";
-    #else
-        const char * config = " DEBUG";
-    #endif
-        RunSystemCommand(log, "..\\scriptutils\\compile.bat " + name + config + (sizeof(void*) == 8 ? " x64" : " x86")); // Compile the new scripts
+        CompileLibrary(log, name); // Compile the new scripts
         Load(); // Load the newly compiled *.dll
     }
 }
+
+#ifdef WIN32
+
+#include <Windows.h>
+#ifdef NDEBUG
+static const char * config = " RELEASE";
+#else
+static const char * config = " DEBUG";
+#endif
+static void RunSystemCommand(std::ostream & log, std::string cmd) { auto pipe = _popen(cmd.c_str(), "r"); char buffer[1024]; while (fgets(buffer, sizeof(buffer), pipe)) log << buffer; fclose(pipe); }
+const char * script::GetExportSpecifier() { return "__declspec(dllexport)"; }
+void script::CleanLibrary(std::ostream & log, const std::string & name) { RunSystemCommand(log, "..\\scriptutils\\clean.bat " + name); }
+void script::CompileLibrary(std::ostream & log, const std::string & name){ RunSystemCommand(log, "..\\scriptutils\\compile.bat " + name + config + (sizeof(void*) == 8 ? " x64" : " x86")); }
+void * script::OpenLibrary(const std::string & name) { auto path = "scripts\\" + name + ".dll"; return LoadLibraryA(path.c_str()); }
+void * script::LoadSymbol(void * library, const std::string & id) { return GetProcAddress(reinterpret_cast<HMODULE>(library), id.c_str()); }
+void script::CloseLibrary(void * library) { FreeLibrary(reinterpret_cast<HMODULE>(library)); }
+
+#else
+
+
+
+#endif

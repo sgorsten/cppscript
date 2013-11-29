@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="app.cpp" />
-    <ClCompile Include="cppscript.cpp" />
+    <ClCompile Include="..\src\app.cpp" />
+    <ClCompile Include="..\src\cppscript.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cppscript.h" />
+    <ClInclude Include="..\src\cppscript.h" />
   </ItemGroup>
 </Project>
