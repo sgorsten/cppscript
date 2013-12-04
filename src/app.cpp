@@ -16,6 +16,12 @@ int main()
         auto print = lib.CreateFunction<void(std::string)>("(std::string s) { std::cout << s << std::endl; }");
 
         auto hello = lib.CreateAction("std::cout << \"Hello world for the \" << ++count << \"th time!\" << std::endl;");
+        auto sqr = lib.CreateFunction<int(int)>("(int x) { return x*x; }");
+        auto sum = lib.CreateFunction<double(double, double)>("(double a, double b) { return a+b; }");
+
+        //lib.Load();
+
+
         lib.Recompile(std::cout);
         hello();
         hello();
@@ -23,8 +29,7 @@ int main()
 
         print("Woot!");
 
-        auto sqr = lib.CreateFunction<int(int)>("(int x) { return x*x; }");
-        auto sum = lib.CreateFunction<double(double, double)>("(double a, double b) { return a+b; }");
+
         lib.Recompile(std::cout);
 
         std::cout << "sqr(5) = " << sqr(5) << std::endl;

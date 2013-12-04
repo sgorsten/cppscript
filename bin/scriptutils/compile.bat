@@ -1,31 +1,13 @@
 @ECHO OFF
 
-SET CFLAGS=/GS /W3 /Zc:wchar_t /Fd"scripts\%1\vc120.pdb" /fp:precise /D "WIN32" /D "_WINDOWS" /D "_USRDLL" /D "_WINDLL" /D "_UNICODE" /D "UNICODE" /errorReport:prompt /WX- /Zc:forScope /Gd /nologo /EHsc /Fo"scripts\%1\script.obj" /Fp"scripts\%1\script.pch" scripts\%1\script.cpp
-
-SET LFLAGS=/OUT:"scripts\%1.dll" /MANIFEST /NXCOMPAT /PDB:"scripts\%1.pdb" /DYNAMICBASE /IMPLIB:"scripts\%1\script.lib" "kernel32.lib" "user32.lib" "gdi32.lib" "winspool.lib" "comdlg32.lib" "advapi32.lib" "shell32.lib" "ole32.lib" "oleaut32.lib" "uuid.lib" "odbc32.lib" "odbccp32.lib" /DEBUG /DLL /SUBSYSTEM:WINDOWS /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /ManifestFile:"scripts\%1\script.dll.intermediate.manifest" /ERRORREPORT:PROMPT /NOLOGO /TLBID:1
-
-IF "%2" == "DEBUG" (
-SET CFLAGS=%CFLAGS% /D "_DEBUG" /RTC1 /Gm /Od /MDd
-SET LFLAGS=%LFLAGS% /INCREMENTAL
-IF "%3" == "x86" SET CFLAGS=%CFLAGS% /ZI
-IF "%3" == "x64" SET CFLAGS=%CFLAGS% /Zi
-)
-
-IF "%2" == "RELEASE" (
-SET CFLAGS=%CFLAGS% /D "NDEBUG" /GL /Gy /Zi /Gm- /O2 /Oi /MD
-SET LFLAGS=%LFLAGS% /LTCG /OPT:REF /INCREMENTAL:NO /OPT:ICF
+IF "%3" == "x64" (
+CALL "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x86_amd64 > nul 2> nul
+IF "%2" == "DEBUG" cl /GS /W3 /Zc:wchar_t /Zi /Gm /Od /Fd"scripts\%1\vc120.pdb" /fp:precise /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_USRDLL" /D "_WINDLL" /D "_UNICODE" /D "UNICODE" /errorReport:prompt /WX- /Zc:forScope /RTC1 /Gd /MDd /Fa"scripts\%1\script.asm" /EHsc /nologo /Fo"scripts\%1\script.obj" /Fp"scripts\%1\script.pch" scripts\%1\script.cpp /link /OUT:"scripts\%1.dll" /MANIFEST /NXCOMPAT /PDB:"scripts\%1.pdb" /DYNAMICBASE "kernel32.lib" "user32.lib" "gdi32.lib" "winspool.lib" "comdlg32.lib" "advapi32.lib" "shell32.lib" "ole32.lib" "oleaut32.lib" "uuid.lib" "odbc32.lib" "odbccp32.lib" /IMPLIB:"scripts\%1\script.lib" /DEBUG /DLL /MACHINE:X64 /INCREMENTAL /SUBSYSTEM:WINDOWS /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /ManifestFile:"scripts\%1\script.dll.intermediate.manifest" /ERRORREPORT:PROMPT /NOLOGO /TLBID:1
+IF "%2" == "RELEASE" cl /GS /GL /W3 /Gy /Zc:wchar_t /Zi /Gm- /O2 /Fd"scripts\%1\vc120.pdb" /fp:precise /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_USRDLL" /D "_WINDLL" /D "_UNICODE" /D "UNICODE" /errorReport:prompt /WX- /Zc:forScope /Gd /Oi /MD /Fa"scripts\%1\script.asm" /EHsc /nologo /Fo"scripts\%1\script.obj" /Fp"scripts\%1\script.pch" scripts\%1\script.cpp /link /OUT:"scripts\%1.dll" /MANIFEST /LTCG /NXCOMPAT /PDB:"scripts\%1.pdb" /DYNAMICBASE "kernel32.lib" "user32.lib" "gdi32.lib" "winspool.lib" "comdlg32.lib" "advapi32.lib" "shell32.lib" "ole32.lib" "oleaut32.lib" "uuid.lib" "odbc32.lib" "odbccp32.lib" /IMPLIB:"scripts\%1\script.lib" /DEBUG /DLL /MACHINE:X64 /OPT:REF /INCREMENTAL:NO  /SUBSYSTEM:WINDOWS /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /ManifestFile:"scripts\%1\script.dll.intermediate.manifest" /OPT:ICF /ERRORREPORT:PROMPT /NOLOGO /TLBID:1 
 )
 
 IF "%3" == "x86" (
-SET CFLAGS=%CFLAGS% /analyze- /Oy-
-SET LFLAGS=%LFLAGS% /MACHINE:X86
-IF "%2" == "RELEASE" SET LFLAGS=%LFLAGS% /SAFESEH
 CALL "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x86 > nul 2> nul
+IF "%2" == "DEBUG" cl /GS /analyze- /W3 /Zc:wchar_t /ZI /Gm /Od /Fd"scripts\%1\vc120.pdb" /fp:precise /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_USRDLL" /D "TESTDLL_EXPORTS" /D "_WINDLL" /D "_UNICODE" /D "UNICODE" /errorReport:prompt /WX- /Zc:forScope /RTC1 /Gd /Oy- /MDd /Fa"scripts\%1\script.asm" /EHsc /nologo /Fo"scripts\%1\script.obj" /Fp"scripts\%1\script.pch" scripts\%1\script.cpp /link /OUT:"scripts\%1.dll" /MANIFEST /NXCOMPAT /PDB:"scripts\%1.pdb" /DYNAMICBASE "kernel32.lib" "user32.lib" "gdi32.lib" "winspool.lib" "comdlg32.lib" "advapi32.lib" "shell32.lib" "ole32.lib" "oleaut32.lib" "uuid.lib" "odbc32.lib" "odbccp32.lib" /IMPLIB:"scripts\%1\script.lib" /DEBUG /DLL /MACHINE:X86 /INCREMENTAL /SUBSYSTEM:WINDOWS /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /ManifestFile:"scripts\%1\script.dll.intermediate.manifest" /ERRORREPORT:PROMPT /NOLOGO /TLBID:1 
+IF "%2" == "RELEASE" cl /GS /GL /analyze- /W3 /Gy /Zc:wchar_t /Zi /Gm- /O2 /Fd"scripts\%1\vc120.pdb" /fp:precise /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_USRDLL" /D "_WINDLL" /D "_UNICODE" /D "UNICODE" /errorReport:prompt /WX- /Zc:forScope /Gd /Oy- /Oi /MD /Fa"scripts\%1\script.asm" /EHsc /nologo /Fo"scripts\%1\script.obj" /Fp"scripts\%1\script.pch" scripts\%1\script.cpp /link /OUT:"scripts\%1.dll" /MANIFEST /LTCG /NXCOMPAT /PDB:"scripts\%1.pdb" /DYNAMICBASE "kernel32.lib" "user32.lib" "gdi32.lib" "winspool.lib" "comdlg32.lib" "advapi32.lib" "shell32.lib" "ole32.lib" "oleaut32.lib" "uuid.lib" "odbc32.lib" "odbccp32.lib" /IMPLIB:"scripts\%1\script.lib" /DEBUG /DLL /MACHINE:X86 /OPT:REF /SAFESEH /INCREMENTAL:NO /SUBSYSTEM:WINDOWS /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /ManifestFile:"scripts\%1\script.dll.intermediate.manifest" /OPT:ICF /ERRORREPORT:PROMPT /NOLOGO /TLBID:1 
 )
-
-IF "%3" == "x64" (
-SET LFLAGS=%LFLAGS% /MACHINE:X64
-CALL "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x86_amd64 > nul 2> nul
-)
-
-cl %CFLAGS% /link %LFLAGS%
