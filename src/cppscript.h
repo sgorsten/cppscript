@@ -1,6 +1,7 @@
 #ifndef CPP_SCRIPT_H
 #define CPP_SCRIPT_H
 
+#include <functional>
 #include <utility>
 #include <memory>
 #include <string>
@@ -9,7 +10,7 @@
 
 namespace script
 {
-    struct _Node { const char * sig; size_t hash; std::string id, source; void * impl; };
+    struct _Node { const char * sig; size_t hash; std::string source; std::shared_ptr<void> impl; };
 
     template<class Signature> class Function
     {
@@ -21,22 +22,23 @@ namespace script
         bool                            operator == (const Function & rhs) const { return node == rhs.node; }
         bool                            operator != (const Function & rhs) const { return node != rhs.node; }
 
-        bool                            IsLoaded() const { return GetPointer() != nullptr; }
+        bool                            IsLoaded() const { return GetFunction(); }
         const std::string &             GetSource() const { static const std::string empty; return node ? node->source : empty; }
-        Signature *                     GetPointer() const { return node ? reinterpret_cast<Signature*>(node->impl) : nullptr; }
+        std::function<Signature>        GetFunction() const { static const std::function<Signature> empty; return (node && node->impl) ? *reinterpret_cast<std::function<Signature> *>(node->impl.get()) : empty; }
 
 #ifdef WIN32
-        template<class... Params> auto  operator()(Params... args) -> decltype(GetPointer()(args...)) const { return GetPointer()(args...); }
+        template<class... Params> auto  operator()(Params... args) -> decltype(GetFunction()(args...)) const { return GetFunction()(args...); }
 #else
-        template<class... Params> auto  operator()(Params... args) -> decltype(this->GetPointer()(args...)) const { return GetPointer()(args...); }
+        template<class... Params> auto  operator()(Params... args) -> decltype(this->GetFunction()(args...)) const { return GetFunction()(args...); }
 #endif
     };
 
     class Library
     {
         std::string name, preamble;
-        std::map<const char *, std::pair<std::string, std::string>> sigs;
+        std::map<const char *, std::string> sigs;
         std::vector<std::weak_ptr<_Node>> nodes;
+        std::map<std::string, std::pair<std::string, void *>> vars;
         void * module;
         size_t nextId;
 
@@ -49,7 +51,9 @@ namespace script
         void Unload();
         void Recompile(std::ostream & log);
 
-        template<class Signature> void DefineSignature(std::string returnType, std::string paramTypes) { sigs[typeid(Signature).name()] = make_pair(move(returnType), move(paramTypes)); }
+        void AddVariableReference(const char * name, std::string type, void * ptr) { vars[name] = std::make_pair(type,ptr); }
+
+        template<class Signature> void DefineSignature(std::string sig) { sigs[typeid(Signature).name()] = sig; }
         template<class Signature> Function<Signature> CreateScript(std::string source) { return CreateScriptNode(typeid(Signature), source); }
     };
 }

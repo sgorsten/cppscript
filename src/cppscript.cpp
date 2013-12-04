@@ -4,7 +4,7 @@
 #include <sstream>
 #include <fstream>
 
-struct __module { std::map<size_t, void**> funcs; };
+struct __module { std::map<std::string, void *> vars; std::map<size_t, std::shared_ptr<void> *> funcs; };
 
 namespace script
 {
@@ -20,13 +20,10 @@ namespace script
 
     std::shared_ptr<_Node> Library::CreateScriptNode(const std::type_info & sig, std::string source)
     {
-        // Compute a name for this function by hashing the signature and source code together
+        // Compute an ID for this function by hashing the signature and source code together
         std::ostringstream ss;
         ss << sig.name() << " " << source;
-        auto h = std::hash<std::string>()(ss.str());
-        ss.str("");
-        ss << "__script_function_" << h;
-        std::string id = ss.str();
+        auto hash = std::hash<std::string>()(ss.str());
 
         // If signature and source match an existing function, hand that one out
         for (auto & n : nodes)
@@ -34,15 +31,14 @@ namespace script
             if (auto node = n.lock())
             {
                 if (node->sig == sig.name() && node->source == source) return node;
-                if (node->id == id) throw std::runtime_error("Hash collision in library " + name + ": " + source); // User can always add whitespace to change the hash
+                if (node->hash == hash) throw std::runtime_error("Hash collision in library " + name + ": " + source); // User can always add whitespace to change the hash
             }
         }
 
         // Create a script node for this function
         auto func = std::make_shared<_Node>();
-        func->hash = h;
         func->sig = sig.name();
-        func->id = ss.str();
+        func->hash = hash;
         func->source = source;
         func->impl = nullptr;
         nodes.push_back(func);
@@ -59,6 +55,10 @@ namespace script
         if (!loader) throw std::runtime_error("Missing entrypoint: __load_functions");
         std::vector<std::shared_ptr<_Node>> _nodes;
         __module mod;
+        for (auto & kvp : vars)
+        {
+            mod.vars[kvp.first] = kvp.second.second;
+        }
         for (size_t i = 0; i < nodes.size(); ++i)
         {
             if (auto node = nodes[i].lock())
@@ -67,7 +67,7 @@ namespace script
                 mod.funcs[node->hash] = &node->impl;
             }
         }
-        loader(mod); // NOTE: This is currently not terribly safe, if the *.dll is out of date
+        loader(mod);
     }
 
     void Library::Unload()
@@ -101,19 +101,26 @@ namespace script
         std::ofstream out("scripts/" + name + "/script.cpp");
         out << preamble << R"(
 #include <functional>
+#include <memory>
 #include <map>
-struct __module {
-    std::map<size_t, void**> funcs;
+struct __module { std::map<std::string, void *> vars; std::map<size_t, std::shared_ptr<void> *> funcs;
+    template<class T> T & var(const char * name) { return *reinterpret_cast<T *>(vars[name]); }
+    template<class F> void func(size_t key, std::function<F> func) { auto it = funcs.find(key); if(it != end(funcs)) *it->second = std::make_shared<std::function<F>>(move(func)); }
 };
 
 extern "C" )" << GetExportSpecifier() << " void __load_functions(__module & __) {\n";
+        for (auto & kvp : vars)
+        {
+            out << "    auto & " << kvp.first << " = __.var<" << kvp.second.first << ">(\"" << kvp.first << "\");" << std::endl;
+        }
+
         for (size_t i = 0; i < nodes.size(); ++i)
         {
             if (auto node = nodes[i].lock())
             {
                 auto it = sigs.find(node->sig);
                 assert(it != sigs.end()); // Must have defined signature ahead of time
-                out << "    *(" << it->second.first << "(**)(" << it->second.second << "))__.funcs[" << node->hash << "] = []" << node->source << ";" << std::endl;
+                out << "    __.func<" << it->second << ">(" << node->hash << ",\n        [&]" << node->source << ");" << std::endl;
             }
         }
         out << "}" << std::endl;
