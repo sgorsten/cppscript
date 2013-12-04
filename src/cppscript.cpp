@@ -4,7 +4,12 @@
 #include <sstream>
 #include <fstream>
 
-struct __module { std::map<std::string, void *> vars; std::map<size_t, std::shared_ptr<void> *> funcs; };
+//struct __module { std::map<std::string, void *> vars; std::map<size_t, std::shared_ptr<void> *> funcs; };
+struct __module {
+    std::map<std::string, void *> vars; std::map<size_t, std::shared_ptr<void> *> funcs;
+    template<class T> T & var(const char * name) { return *reinterpret_cast<T *>(vars[name]); }
+    template<class F> void func(size_t key, std::function<F> func) { auto it = funcs.find(key); if (it != end(funcs)) *it->second = std::make_shared<std::function<F>>(move(func)); }
+};
 
 namespace script
 {
@@ -15,7 +20,7 @@ namespace script
     static void * LoadSymbol(void * library, const std::string & id);
     static void CloseLibrary(void * library);
 
-    Library::Library(std::string name, std::string preamble) : name(move(name)), preamble(move(preamble)), module(), nextId() {}
+    Library::Library(std::string name, std::string preamble) : name(move(name)), preamble(move(preamble)), module() { DefineSignature<void()>("void()"); }
     Library::~Library() { Unload(); }
 
     std::shared_ptr<_Node> Library::CreateScriptNode(const std::type_info & sig, std::string source)

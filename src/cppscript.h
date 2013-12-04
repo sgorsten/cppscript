@@ -39,8 +39,8 @@ namespace script
         std::map<const char *, std::string> sigs;
         std::vector<std::weak_ptr<_Node>> nodes;
         std::map<std::string, std::pair<std::string, void *>> vars;
+        std::vector<std::shared_ptr<void>> ownedVars;
         void * module;
-        size_t nextId;
 
         std::shared_ptr<_Node> CreateScriptNode(const std::type_info & sig, std::string source);
     public:
@@ -52,9 +52,13 @@ namespace script
         void Recompile(std::ostream & log);
 
         void AddVariableReference(const char * name, std::string type, void * ptr) { vars[name] = std::make_pair(type,ptr); }
+        template<class T> void CreateVariable(const char * name, std::string type, T val) { auto ptr = std::make_shared<T>(std::move(val)); AddVariableReference(name, type, ptr.get()); ownedVars.push_back(ptr); }
 
         template<class Signature> void DefineSignature(std::string sig) { sigs[typeid(Signature).name()] = sig; }
-        template<class Signature> Function<Signature> CreateScript(std::string source) { return CreateScriptNode(typeid(Signature), source); }
+        template<class Signature> Function<Signature> CreateFunction(std::string source) { return CreateScriptNode(typeid(Signature), source); }
+        template<class T> Function<T()> CreateExpression(std::string source) { return CreateFunction<T()>("() { return " + source + "; }"); }
+        Function<void()> CreateAction(std::string source) { return CreateFunction<void()>("() { " + source + " }"); }
+        
     };
 }
 

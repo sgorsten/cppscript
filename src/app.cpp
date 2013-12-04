@@ -6,18 +6,16 @@ int main()
 {
     try
     {
-        int count = 0;
         script::Library lib("test", "#include <iostream>\n#include <string>\n");
-        lib.AddVariableReference("count", "int", &count);
+        lib.CreateVariable<int>("count", "int", 0);
 
-        lib.DefineSignature<void()>("void()");
         lib.DefineSignature<int(int)>("int(int)");
         lib.DefineSignature<double(double, double)>("double(double,double)");
         lib.DefineSignature<void(std::string)>("void(std::string)");
 
-        auto print = lib.CreateScript<void(std::string)>("(std::string s) { std::cout << s << std::endl; }");
+        auto print = lib.CreateFunction<void(std::string)>("(std::string s) { std::cout << s << std::endl; }");
 
-        auto hello = lib.CreateScript<void()>("() { std::cout << \"Hello world for the \" << ++count << \"th time!\" << std::endl; }");
+        auto hello = lib.CreateAction("std::cout << \"Hello world for the \" << ++count << \"th time!\" << std::endl;");
         lib.Recompile(std::cout);
         hello();
         hello();
@@ -25,8 +23,8 @@ int main()
 
         print("Woot!");
 
-        auto sqr = lib.CreateScript<int(int)>("(int x) { return x*x; }");
-        auto sum = lib.CreateScript<double(double, double)>("(double a, double b) { return a+b; }");
+        auto sqr = lib.CreateFunction<int(int)>("(int x) { return x*x; }");
+        auto sum = lib.CreateFunction<double(double, double)>("(double a, double b) { return a+b; }");
         lib.Recompile(std::cout);
 
         std::cout << "sqr(5) = " << sqr(5) << std::endl;
