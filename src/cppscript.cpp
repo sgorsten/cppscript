@@ -56,9 +56,9 @@ namespace script
         {
             if (auto node = nodes[i].lock())
             {
-                auto loader = (void *(*)())LoadSymbol(module, node->id);
+                auto loader = (void (*)(void **))LoadSymbol(module, node->id);
                 if (!loader) throw std::runtime_error("Missing procedure in library " + name + ": " + node->source);
-                node->impl = loader();
+                loader(&node->impl);
             }
         }
     }
@@ -97,9 +97,11 @@ namespace script
         {
             if (auto node = nodes[i].lock())
             {
+                typedef void (*Func)();
+
                 auto it = sigs.find(node->sig);
                 assert(it != sigs.end()); // Must have defined signature ahead of time
-                out << "extern \"C\" " << GetExportSpecifier() << " " << it->second.first << "(*" << node->id << "())(" << it->second.second << ") { return[]" << node->source << "; }" << std::endl;
+                out << "extern \"C\" " << GetExportSpecifier() << " void " << node->id << "(void ** pImpl) { typedef " << it->second.first << " (*Func)(" << it->second.second << "); *(Func*)(pImpl) = []" << node->source << "; }" << std::endl;
             }
         }
         out.close();

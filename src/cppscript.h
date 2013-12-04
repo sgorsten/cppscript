@@ -25,7 +25,11 @@ namespace script
         const std::string &             GetSource() const { static const std::string empty; return node ? node->source : empty; }
         Signature *                     GetPointer() const { return node ? reinterpret_cast<Signature*>(node->impl) : nullptr; }
 
+#ifdef WIN32
+        template<class... Params> auto  operator()(Params... args) -> decltype(GetPointer()(args...)) const { return GetPointer()(args...); }
+#else
         template<class... Params> auto  operator()(Params... args) -> decltype(this->GetPointer()(args...)) const { return GetPointer()(args...); }
+#endif
     };
 
     class Library
