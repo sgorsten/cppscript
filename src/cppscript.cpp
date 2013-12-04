@@ -4,13 +4,6 @@
 #include <sstream>
 #include <fstream>
 
-//struct __module { std::map<std::string, void *> vars; std::map<size_t, std::shared_ptr<void> *> funcs; };
-struct __module {
-    std::map<std::string, void *> vars; std::map<size_t, std::shared_ptr<void> *> funcs;
-    template<class T> T & var(const char * name) { return *reinterpret_cast<T *>(vars[name]); }
-    template<class F> void func(size_t key, std::function<F> func) { auto it = funcs.find(key); if (it != end(funcs)) *it->second = std::make_shared<std::function<F>>(move(func)); }
-};
-
 namespace script
 {
     static const char * GetExportSpecifier();
@@ -56,10 +49,11 @@ namespace script
 
         module = OpenLibrary(name);
         if (!module) throw std::runtime_error("Missing library: " + name);
+
+        struct __module { std::map<std::string, void *> vars; std::map<size_t, std::shared_ptr<void> *> funcs; } mod;
         auto loader = (void(*)(__module &))LoadSymbol(module, "__load_functions");
         if (!loader) throw std::runtime_error("Missing entrypoint: __load_functions");
         std::vector<std::shared_ptr<_Node>> _nodes;
-        __module mod;
         for (auto & kvp : vars)
         {
             mod.vars[kvp.first] = kvp.second.second;
