@@ -101,7 +101,7 @@ namespace script
 
                 auto it = sigs.find(node->sig);
                 assert(it != sigs.end()); // Must have defined signature ahead of time
-                out << "extern \"C\" " << GetExportSpecifier() << " void " << node->id << "(void ** pImpl) { typedef " << it->second.first << " (*Func)(" << it->second.second << "); *(Func*)(pImpl) = []" << node->source << "; }" << std::endl;
+                out << "extern \"C\" " << GetExportSpecifier() << " void " << node->id << "(void ** pImpl) { *(" << it->second.first << "(**)(" << it->second.second << "))pImpl = []" << node->source << "; }" << std::endl;
             }
         }
         out.close();

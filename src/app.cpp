@@ -20,6 +20,8 @@ int main()
         lib.Recompile(std::cout);
         hello(); hello2();
 
+        print("Woot!");
+
         hello = lib.CreateScript<void()>("() { std::cout << \"Scripting in C++ is surprisingly simple!\" << std::endl; }");
         auto sqr = lib.CreateScript<int(int)>("(int x) { return x*x; }");
         auto sum = lib.CreateScript<double(double, double)>("(double a, double b) { return a+b; }");
