@@ -4,6 +4,8 @@
 #include <sstream>
 #include <fstream>
 
+struct __module { std::map<size_t, void**> funcs; };
+
 namespace script
 {
     static const char * GetExportSpecifier();
@@ -38,6 +40,7 @@ namespace script
 
         // Create a script node for this function
         auto func = std::make_shared<_Node>();
+        func->hash = h;
         func->sig = sig.name();
         func->id = ss.str();
         func->source = source;
@@ -52,15 +55,19 @@ namespace script
 
         module = OpenLibrary(name);
         if (!module) throw std::runtime_error("Missing library: " + name);
+        auto loader = (void(*)(__module &))LoadSymbol(module, "__load_functions");
+        if (!loader) throw std::runtime_error("Missing entrypoint: __load_functions");
+        std::vector<std::shared_ptr<_Node>> _nodes;
+        __module mod;
         for (size_t i = 0; i < nodes.size(); ++i)
         {
             if (auto node = nodes[i].lock())
             {
-                auto loader = (void (*)(void **))LoadSymbol(module, node->id);
-                if (!loader) throw std::runtime_error("Missing procedure in library " + name + ": " + node->source);
-                loader(&node->impl);
+                _nodes.push_back(node);
+                mod.funcs[node->hash] = &node->impl;
             }
         }
+        loader(mod); // NOTE: This is currently not terribly safe, if the *.dll is out of date
     }
 
     void Library::Unload()
@@ -92,18 +99,24 @@ namespace script
 
         // Write script source code
         std::ofstream out("scripts/" + name + "/script.cpp");
-        out << preamble;
+        out << preamble << R"(
+#include <functional>
+#include <map>
+struct __module {
+    std::map<size_t, void**> funcs;
+};
+
+extern "C" )" << GetExportSpecifier() << " void __load_functions(__module & __) {\n";
         for (size_t i = 0; i < nodes.size(); ++i)
         {
             if (auto node = nodes[i].lock())
             {
-                typedef void (*Func)();
-
                 auto it = sigs.find(node->sig);
                 assert(it != sigs.end()); // Must have defined signature ahead of time
-                out << "extern \"C\" " << GetExportSpecifier() << " void " << node->id << "(void ** pImpl) { *(" << it->second.first << "(**)(" << it->second.second << "))pImpl = []" << node->source << "; }" << std::endl;
+                out << "    *(" << it->second.first << "(**)(" << it->second.second << "))__.funcs[" << node->hash << "] = []" << node->source << ";" << std::endl;
             }
         }
+        out << "}" << std::endl;
         out.close();
 
         CompileLibrary(log, name); // Compile the new scripts

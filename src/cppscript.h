@@ -9,7 +9,7 @@
 
 namespace script
 {
-    struct _Node { const char * sig; std::string id, source; void * impl; };
+    struct _Node { const char * sig; size_t hash; std::string id, source; void * impl; };
 
     template<class Signature> class Function
     {
