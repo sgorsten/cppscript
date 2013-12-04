@@ -35,7 +35,7 @@ namespace script
 
     class Library
     {
-        std::string name, preamble;
+        std::string name, preamble, libdep;
         std::map<const char *, std::string> sigs;
         std::vector<std::weak_ptr<_Node>> nodes;
         std::map<std::string, std::pair<std::string, void *>> vars;
@@ -44,7 +44,7 @@ namespace script
 
         std::shared_ptr<_Node> CreateScriptNode(const std::type_info & sig, std::string source);
     public:
-        Library(std::string name, std::string preamble);
+        Library(std::string name, std::string preamble, std::string libdep);
         ~Library();
 
         void Load();

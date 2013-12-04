@@ -15,12 +15,12 @@ namespace script
 {
     static const char * GetExportSpecifier();
     static void CleanLibrary(std::ostream & log, const std::string & name);
-    static void CompileLibrary(std::ostream & log, const std::string & name);
+    static void CompileLibrary(std::ostream & log, const std::string & name, const std::string & libdep);
     static void * OpenLibrary(const std::string & name);
     static void * LoadSymbol(void * library, const std::string & id);
     static void CloseLibrary(void * library);
 
-    Library::Library(std::string name, std::string preamble) : name(move(name)), preamble(move(preamble)), module() { DefineSignature<void()>("void()"); }
+    Library::Library(std::string name, std::string preamble, std::string libdep) : name(move(name)), preamble(move(preamble)), libdep(move(libdep)), module() { DefineSignature<void()>("void()"); }
     Library::~Library() { Unload(); }
 
     std::shared_ptr<_Node> Library::CreateScriptNode(const std::type_info & sig, std::string source)
@@ -131,7 +131,7 @@ extern "C" )" << GetExportSpecifier() << " void __load_functions(__module & __) 
         out << "}" << std::endl;
         out.close();
 
-        CompileLibrary(log, name); // Compile the new scripts
+        CompileLibrary(log, name, libdep); // Compile the new scripts
         Load(); // Load the newly compiled *.dll
     }
 }
@@ -147,7 +147,7 @@ static const char * config = " DEBUG";
 static void RunSystemCommand(std::ostream & log, std::string cmd) { auto pipe = _popen(cmd.c_str(), "r"); char buffer[1024]; while (fgets(buffer, sizeof(buffer), pipe)) log << buffer; fclose(pipe); }
 const char * script::GetExportSpecifier() { return "__declspec(dllexport)"; }
 void script::CleanLibrary(std::ostream & log, const std::string & name) { RunSystemCommand(log, "..\\scriptutils\\clean.bat " + name); }
-void script::CompileLibrary(std::ostream & log, const std::string & name){ RunSystemCommand(log, "..\\scriptutils\\compile.bat " + name + config + (sizeof(void*) == 8 ? " x64" : " x86")); }
+void script::CompileLibrary(std::ostream & log, const std::string & name, const std::string & libdep){ RunSystemCommand(log, "..\\scriptutils\\compile.bat " + name + config + (sizeof(void*) == 8 ? " x64 " : " x86 ") + libdep); }
 void * script::OpenLibrary(const std::string & name) { auto path = "scripts\\" + name + ".dll"; return LoadLibraryA(path.c_str()); }
 void * script::LoadSymbol(void * library, const std::string & id) { return GetProcAddress(reinterpret_cast<HMODULE>(library), id.c_str()); }
 void script::CloseLibrary(void * library) { FreeLibrary(reinterpret_cast<HMODULE>(library)); }

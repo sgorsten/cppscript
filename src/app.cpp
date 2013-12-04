@@ -1,40 +1,26 @@
 #include "cppscript.h"
 
+#include "app_engine/engine.h"
+
 #include <iostream>
 
 int main()
 {
     try
     {
-        script::Library lib("test", "#include <iostream>\n#include <string>\n");
-        lib.CreateVariable<int>("count", "int", 0);
-
-        lib.DefineSignature<int(int)>("int(int)");
-        lib.DefineSignature<double(double, double)>("double(double,double)");
-        lib.DefineSignature<void(std::string)>("void(std::string)");
-
-        auto print = lib.CreateFunction<void(std::string)>("(std::string s) { std::cout << s << std::endl; }");
-
-        auto hello = lib.CreateAction("std::cout << \"Hello world for the \" << ++count << \"th time!\" << std::endl;");
-        auto sqr = lib.CreateFunction<int(int)>("(int x) { return x*x; }");
-        auto sum = lib.CreateFunction<double(double, double)>("(double a, double b) { return a+b; }");
-
-        //lib.Load();
-
-
-        lib.Recompile(std::cout);
-        hello();
-        hello();
-        hello();
-
-        print("Woot!");
-
-
+        Object player = { "player", { 1, 2, 3 }, { 4, -2, 3 }, 0.5f };
+        
+        script::Library lib("test", "#include \"../../../../src/app_engine/engine.h\"\n#include <iostream>\n", "../../lib/Debugx64/AppEngine.lib");
+        lib.AddVariableReference("player", "Object", &player);
+        auto onTimestep = lib.CreateAction("Integrate(player, 0.1f);");
         lib.Recompile(std::cout);
 
-        std::cout << "sqr(5) = " << sqr(5) << std::endl;
-        std::cout << "sum(3.1,4.2) = " << sum(3.1, 4.2) << std::endl;
-        hello();
+        for (size_t i = 0; i < 3; ++i)
+        {
+            onTimestep();
+            std::cout << "Frame " << i << ": Player is at " << player.position.x << std::endl;
+        }
+
         return 0;
     }
     catch (const std::exception & e)
