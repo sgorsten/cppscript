@@ -32,8 +32,9 @@ namespace script
         template<class... Params> auto  operator()(Params... args) -> decltype(this->GetFunction()(args...)) const { return GetFunction()(args...); }
 #endif
     };
+    typedef Function<void()> Action;
 
-    class Library
+    class Context
     {
         std::string name, preamble, libdep;
         std::map<const char *, std::string> sigs;
@@ -44,8 +45,8 @@ namespace script
 
         std::shared_ptr<_Node> CreateScriptNode(const std::type_info & sig, std::string source);
     public:
-        Library(std::string name, std::string preamble, std::string libdep);
-        ~Library();
+        Context(std::string name, std::string preamble, std::string libdep);
+        ~Context();
 
         void Load();
         void Unload();
@@ -57,8 +58,7 @@ namespace script
         template<class Signature> void DefineSignature(std::string sig) { sigs[typeid(Signature).name()] = sig; }
         template<class Signature> Function<Signature> CreateFunction(std::string source) { return CreateScriptNode(typeid(Signature), source); }
         template<class T> Function<T()> CreateExpression(std::string source) { return CreateFunction<T()>("() { return " + source + "; }"); }
-        Function<void()> CreateAction(std::string source) { return CreateFunction<void()>("() { " + source + " }"); }
-        
+        Action CreateAction(std::string source) { return CreateFunction<void()>("() { " + source + " }"); }
     };
 }
 

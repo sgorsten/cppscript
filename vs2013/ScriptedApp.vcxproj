@@ -30,6 +30,10 @@
       <Project>{dc0ef020-c6cb-4ccd-91bb-42d7ecf77acd}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\bin\scriptutils\clean.bat" />
+    <None Include="..\bin\scriptutils\compile.bat" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{8D1BB55A-5759-44F5-900C-A8864E5EEADC}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>

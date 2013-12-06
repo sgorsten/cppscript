@@ -4,12 +4,7 @@
 #include <sstream>
 #include <fstream>
 
-//struct __module { std::map<std::string, void *> vars; std::map<size_t, std::shared_ptr<void> *> funcs; };
-struct __module {
-    std::map<std::string, void *> vars; std::map<size_t, std::shared_ptr<void> *> funcs;
-    template<class T> T & var(const char * name) { return *reinterpret_cast<T *>(vars[name]); }
-    template<class F> void func(size_t key, std::function<F> func) { auto it = funcs.find(key); if (it != end(funcs)) *it->second = std::make_shared<std::function<F>>(move(func)); }
-};
+struct __module { std::map<std::string, void *> vars; std::map<size_t, std::shared_ptr<void> *> funcs; };
 
 namespace script
 {
@@ -20,10 +15,10 @@ namespace script
     static void * LoadSymbol(void * library, const std::string & id);
     static void CloseLibrary(void * library);
 
-    Library::Library(std::string name, std::string preamble, std::string libdep) : name(move(name)), preamble(move(preamble)), libdep(move(libdep)), module() { DefineSignature<void()>("void()"); }
-    Library::~Library() { Unload(); }
+    Context::Context(std::string name, std::string preamble, std::string libdep) : name(move(name)), preamble(move(preamble)), libdep(move(libdep)), module() { DefineSignature<void()>("void()"); }
+    Context::~Context() { Unload(); }
 
-    std::shared_ptr<_Node> Library::CreateScriptNode(const std::type_info & sig, std::string source)
+    std::shared_ptr<_Node> Context::CreateScriptNode(const std::type_info & sig, std::string source)
     {
         // Compute an ID for this function by hashing the signature and source code together
         std::ostringstream ss;
@@ -50,7 +45,7 @@ namespace script
         return func;
     }
 
-    void Library::Load()
+    void Context::Load()
     {
         Unload();
 
@@ -75,7 +70,7 @@ namespace script
         loader(mod);
     }
 
-    void Library::Unload()
+    void Context::Unload()
     {
         // Unload implementations of all functions (and garbage-collect unreferenced functions)
         std::vector<std::weak_ptr<_Node>> liveNodes;
@@ -97,7 +92,7 @@ namespace script
         }
     }
 
-    void Library::Recompile(std::ostream & log)
+    void Context::Recompile(std::ostream & log)
     {
         Unload(); // Unload the current *.dll if one is loaded
         CleanLibrary(log, name); // Clean existing artifacts and intermediates

@@ -7,4 +7,8 @@
   <ItemGroup>
     <ClInclude Include="..\src\cppscript.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\bin\scriptutils\clean.bat" />
+    <None Include="..\bin\scriptutils\compile.bat" />
+  </ItemGroup>
 </Project>
