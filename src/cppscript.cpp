@@ -3,6 +3,7 @@
 #include <cassert>
 #include <sstream>
 #include <fstream>
+#include <iomanip>
 
 struct __module { std::map<std::string, void *> vars; std::map<size_t, std::shared_ptr<void> *> funcs; };
 
@@ -15,7 +16,7 @@ namespace script
     static void * LoadSymbol(void * library, const std::string & id);
     static void CloseLibrary(void * library);
 
-    Context::Context(std::string name, std::string preamble, std::string libdep) : name(move(name)), preamble(move(preamble)), libdep(move(libdep)), module() { DefineSignature<void()>("void()"); }
+    Context::Context(std::string name) : name(move(name)), module() { DefineSignature<void()>("void()"); }
     Context::~Context() { Unload(); }
 
     std::shared_ptr<_Node> Context::CreateScriptNode(const std::type_info & sig, std::string source)
@@ -98,8 +99,9 @@ namespace script
         CleanLibrary(log, name); // Clean existing artifacts and intermediates
 
         // Write script source code
-        std::ofstream out("scripts/" + name + "/script.cpp");
-        out << preamble << R"(
+        std::ofstream out("scripts/" + name + ".cpp");
+        for (const auto & header : commonHeaders) out << "#include \"" << header << "\"\n";
+        out << R"(
 #include <functional>
 #include <memory>
 #include <map>
@@ -109,24 +111,29 @@ struct __module { std::map<std::string, void *> vars; std::map<size_t, std::shar
 };
 
 extern "C" )" << GetExportSpecifier() << " void __load_functions(__module & __) {\n";
-        for (auto & kvp : vars)
-        {
-            out << "    auto & " << kvp.first << " = __.var<" << kvp.second.first << ">(\"" << kvp.first << "\");" << std::endl;
-        }
 
+        for (auto & kvp : vars) out << "    auto & " << kvp.first << " = __.var<" << kvp.second.first << ">(\"" << kvp.first << "\");" << std::endl;
         for (size_t i = 0; i < nodes.size(); ++i)
         {
             if (auto node = nodes[i].lock())
             {
                 auto it = sigs.find(node->sig);
                 assert(it != sigs.end()); // Must have defined signature ahead of time
-                out << "    __.func<" << it->second << ">(" << node->hash << ",\n        [&]" << node->source << ");" << std::endl;
+                out << "    __.func<" << it->second << ">(0x" << std::hex << std::setw(sizeof(size_t)*2) << std::setfill('0') << node->hash << ",\n        [&]" << node->source << ");" << std::endl;
             }
         }
         out << "}" << std::endl;
         out.close();
 
-        CompileLibrary(log, name, libdep); // Compile the new scripts
+        std::ostringstream ss;
+        ss << '"';
+        for (size_t i = 0; i < commonLibraries.size(); ++i)
+        {
+            ss << (i>0 ? " " : "") << commonLibraries[i];
+        }
+        ss << '"';
+
+        CompileLibrary(log, name, ss.str()); // Compile the new scripts
         Load(); // Load the newly compiled *.dll
     }
 }

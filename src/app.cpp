@@ -19,7 +19,10 @@ int main()
         + (sizeof(void *) == 8 ? "x64" : "Win32")
         + "/AppEngine.lib";
         
-        script::Context context("test", "#include \"../../../../src/app_engine/engine.h\"\n#include <iostream>\n", libpath);
+        script::Context context("test");
+        context.AddCommonHeader("../../../src/app_engine/engine.h");
+        context.AddCommonHeader("iostream");
+        context.AddCommonLibrary(libpath);
         context.AddVariableReference("player", "Object", &player);
         auto onTimestep = context.CreateAction("Integrate(player, 0.1f);");
         context.Recompile(std::cout);

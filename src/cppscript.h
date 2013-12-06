@@ -36,17 +36,23 @@ namespace script
 
     class Context
     {
-        std::string name, preamble, libdep;
+        std::string name;
         std::map<const char *, std::string> sigs;
         std::vector<std::weak_ptr<_Node>> nodes;
         std::map<std::string, std::pair<std::string, void *>> vars;
         std::vector<std::shared_ptr<void>> ownedVars;
         void * module;
 
+        std::vector<std::string> commonHeaders;
+        std::vector<std::string> commonLibraries;
+
         std::shared_ptr<_Node> CreateScriptNode(const std::type_info & sig, std::string source);
     public:
-        Context(std::string name, std::string preamble, std::string libdep);
+        Context(std::string name);
         ~Context();
+
+        void AddCommonHeader(const std::string & path) { commonHeaders.push_back(path); }
+        void AddCommonLibrary(const std::string & path) { commonLibraries.push_back(path); }
 
         void Load();
         void Unload();
